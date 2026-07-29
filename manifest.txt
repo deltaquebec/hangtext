@@ -2,8 +2,8 @@ manifest.txt
 README.md
 .gitignore
 LICENSE
-docs/canons.pdf
-docs/canons.tex
-src/canons.sty
-bts/bts-sketch.pdf
-bts/bts-ratio.pdf
+docs/hangtext.pdf
+docs/hangtext.tex
+src/hangtext.sty
+bts/hangtext_bts1.pdf
+bts/hangtext_bts2.pdf
