@@ -1,0 +1,623 @@
+%% hangtext.sty
+%% Version: 2026/06/29 v3.0.0
+%% Daniel Quigley <dquigleydev@gmail.com>
+%% License:     LaTeX Project Public License 1.3c
+%% TODO: there are a lot of shared functionalities here; combine
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{hangtext}[2026/07/28 v3.0 Hanging indentation environments]
+
+%  keyval
+\long\def\hangtext@defkey#1#2{\@namedef{hangtext@kv@#1@#2}##1}
+
+\def\hangtext@setkeys#1#2{%
+	\def\hangtext@kv@grp{#1}%
+	\@for\hangtext@kv@raw:=#2\do{%
+		\ifx\hangtext@kv@raw\@empty\else
+		\expandafter\hangtext@kvsplit\hangtext@kv@raw==\hangtext@kv@end
+		\fi}}
+\def\hangtext@kvsplit#1=#2=#3\hangtext@kv@end{%
+	\hangtext@trimkey{#1}%
+	\ifx\hangtext@kvkey\@empty\else
+	\@ifundefined{hangtext@kv@\hangtext@kv@grp @\hangtext@kvkey}%
+	{\PackageWarning{hangtext}{Unknown key '\hangtext@kvkey'}}%
+	{\@nameuse{hangtext@kv@\hangtext@kv@grp @\hangtext@kvkey}{#2}}%
+	\fi}
+% strip all spaces from key
+\def\hangtext@trimkey#1{%
+	\edef\hangtext@kvkey{\zap@space#1 \@empty}}
+
+\def\hangtext@setdim#1#2{%
+	\def\hangtext@kv@val{#2}%
+	\ifx\hangtext@kv@val\@empty
+		\PackageWarning{hangtext}{Empty value for key '\hangtext@kvkey' ignored}%
+	\else
+		#1=\dimexpr #2\relax
+	\fi}
+
+\newlength{\cumulativehang}
+\setlength{\cumulativehang}{0pt}
+
+% track "true base" leftskip from surrounding constructs (like theorems)
+\newlength{\baseleftskip}
+\setlength{\baseleftskip}{0pt}
+
+% depth for the list patch (nesting)
+\newcount\hangtext@activelevel
+\hangtext@activelevel=0
+
+% base text edge captured on entry
+\def\hangtext@basetextedge{0pt}
+
+\makeatletter
+% fallback if caller has not defined this....
+\@ifundefined{allttsubsequentindent}{%
+	\newdimen\allttsubsequentindent
+	\allttsubsequentindent=2em
+}{}
+
+\newcommand*\hangtext@resethang{%
+	\cumulativehang=0pt\relax
+	\baseleftskip=0pt\relax
+	\hangtext@activelevel=0\relax
+}
+\makeatother
+
+
+\makeatletter
+
+% defaults
+\newdimen\hprose@hindent@default  \hprose@hindent@default=2em
+\newdimen\hprose@vspace@default   \hprose@vspace@default=0pt
+\newdimen\hprose@twidth@default   \hprose@twidth@default=\maxdimen
+
+% state
+\newdimen\hprose@temphindent
+\newdimen\hprose@tempvspace
+\newdimen\hprose@temptwidth
+\def\hprose@tempjustification{}
+
+% saved tokens
+\newtoks\hprose@saved@everypar
+
+% flag for minipage mode
+\newif\ifhprose@useminipage
+
+% flag for first paragraph (local to each hprose group; controls \parindent pullback)
+\newif\ifhprose@firstpar
+
+% keys
+\hangtext@defkey{hprose}{hindent}{%
+	\hangtext@setdim\hprose@temphindent{#1}%
+	\ifdim\hprose@temphindent<0pt \hprose@temphindent=0pt\fi
+}
+\hangtext@defkey{hprose}{vspace}{%
+	\hangtext@setdim\hprose@tempvspace{#1}%
+}
+\hangtext@defkey{hprose}{justification}{%
+	\def\hprose@tempjustification{#1}%
+}
+\hangtext@defkey{hprose}{twidth}{%
+	\hangtext@setdim\hprose@temptwidth{#1}%
+	\ifdim\hprose@temptwidth<1sp
+		\PackageWarning{hangtext}{Nonpositive twidth ignored}%
+		\hprose@temptwidth=\maxdimen
+	\fi
+}
+
+% env
+\def\hprose{%
+	\@ifnextchar[{\hprose@withopt}{\hprose@noopt}%
+}
+\def\hprose@withopt[#1]{%
+	\hprose@temphindent=\hprose@hindent@default
+	\hprose@tempvspace=\hprose@vspace@default
+	\hprose@temptwidth=\hprose@twidth@default
+	\def\hprose@tempjustification{}%
+	\hangtext@setkeys{hprose}{#1}%
+	\hprose@checkmode
+}
+\def\hprose@noopt{%
+	\hprose@temphindent=\hprose@hindent@default
+	\hprose@tempvspace=\hprose@vspace@default
+	\hprose@temptwidth=\hprose@twidth@default
+	\def\hprose@tempjustification{}%
+	\hprose@checkmode
+}
+
+% check if we need minipage wrapper
+\def\hprose@checkmode{%
+	\hprose@useminipagefalse
+	\ifvmode\else
+	\ifdim\hprose@temptwidth<\maxdimen
+	\hprose@useminipagetrue
+	\fi
+	\fi
+	\ifhprose@useminipage
+	\hprose@startminipage
+	\else
+	\hprose@start
+	\fi
+}
+
+% minipage wrapper
+\def\hprose@startminipage{%
+	\begin{minipage}{\hprose@temptwidth}%
+	\hangtext@resethang
+	\hprose@start
+}
+\def\endhprose@minipage{%
+	\hprose@end
+	\end{minipage}%
+}
+
+\def\hprose@start{%
+	\par
+	\edef\hprose@savedvspace{\the\hprose@tempvspace}%
+	\edef\hprose@savedhsize{\the\hsize}%
+	\edef\hprose@savedlinewidth{\the\linewidth}%
+	\edef\hprose@savedtextwidth{\the\textwidth}%
+	\edef\hprose@savedcolumnwidth{\the\columnwidth}%
+	\ifvmode\addvspace{\hprose@tempvspace}\fi
+	% apply width constraint if specified; do this early
+	\ifdim\hprose@temptwidth<\maxdimen
+	\hsize=\hprose@temptwidth\relax
+	\linewidth=\hprose@temptwidth\relax
+	\textwidth=\hprose@temptwidth\relax
+	\columnwidth=\hprose@temptwidth\relax
+	\fi
+	\edef\hprose@savedcumulativehang{\the\cumulativehang}%
+	% only capture base state if we are top level
+	\ifdim\cumulativehang=0pt
+	\setlength{\baseleftskip}{\leftskip}%
+	% base text edge for child lists
+	\edef\hangtext@basetextedge{\the\dimexpr\@totalleftmargin+\leftskip\relax}%
+	\fi
+	% save paragraph parameters to restore later
+	\edef\hprose@savedtotalleftmargin{\the\@totalleftmargin}%
+	\edef\hprose@savedparindent{\the\parindent}%
+	\edef\hprose@savedrightskip{\the\rightskip}%
+	\edef\hprose@savedparfillskip{\the\parfillskip}%
+	\edef\hprose@savedspaceskip{\the\spaceskip}%
+	\edef\hprose@savedxspaceskip{\the\xspaceskip}%
+	% save and set up everypar
+	\hprose@saved@everypar=\expandafter{\the\everypar}%
+	% advance cumulativehang first
+	\advance\cumulativehang by \hprose@temphindent\relax
+	\leftskip=\dimexpr\baseleftskip+\cumulativehang\relax
+	\parindent=-\hprose@temphindent\relax
+	% activate the child-measure reduction for this level
+	\advance\hangtext@activelevel by 1\relax
+	\advance\linewidth by -\hprose@temphindent\relax
+	% inform nested display material about the container's left edge
+	\setlength{\@totalleftmargin}{\dimexpr\hangtext@basetextedge+\cumulativehang\relax}%
+	% first-paragraph flag
+	\hprose@firstpartrue
+	\everypar{%
+		\ifhprose@firstpar
+			\hprose@firstparfalse
+			\parindent=0pt\relax
+		\fi
+	}%
+	% justification without disturbing leftskip
+	\def\@tempa{raggedright}%
+	\ifx\hprose@tempjustification\@tempa
+	\rightskip=0pt plus 2em\relax
+	\parfillskip=0pt plus 1fil\relax
+	\spaceskip=.3333em\relax
+	\xspaceskip=.5em\relax
+	\fi
+	\def\@tempa{raggedleft}%
+	\ifx\hprose@tempjustification\@tempa
+	\leftskip=\dimexpr\baseleftskip+\cumulativehang\relax plus 2em\relax
+	\rightskip=0pt\relax
+	\parfillskip=0pt\relax
+	\fi
+	\def\@tempa{centering}%
+	\ifx\hprose@tempjustification\@tempa
+	\leftskip=\dimexpr\baseleftskip+\cumulativehang\relax plus 1fil\relax
+	\rightskip=0pt plus 1fil\relax
+	\parfillskip=0pt\relax
+	\fi
+	\ignorespaces
+}
+
+\def\endhprose{%
+	\ifhprose@useminipage
+	\endhprose@minipage
+	\else
+	\hprose@end
+	\fi
+}
+
+\def\hprose@end{%
+	\par
+	% restore everypar
+	\everypar=\hprose@saved@everypar
+	\setlength{\cumulativehang}{\hprose@savedcumulativehang}%
+	% restore leftskip to base + restored cumulative hang
+	\leftskip=\dimexpr\baseleftskip+\cumulativehang\relax
+	% restore list left margin for parent
+	\setlength{\@totalleftmargin}{\hprose@savedtotalleftmargin}%
+	% restore paragraph parameters
+	\parindent=\hprose@savedparindent\relax
+	\rightskip=\hprose@savedrightskip\relax
+	\parfillskip=\hprose@savedparfillskip\relax
+	\spaceskip=\hprose@savedspaceskip\relax
+	\xspaceskip=\hprose@savedxspaceskip\relax
+	\hsize=\hprose@savedhsize\relax
+	\linewidth=\hprose@savedlinewidth\relax
+	\textwidth=\hprose@savedtextwidth\relax
+	\columnwidth=\hprose@savedcolumnwidth\relax
+	\advance\hangtext@activelevel by -1\relax
+	\ifnum\hangtext@activelevel<0 \hangtext@activelevel=0\relax\fi
+	\ifvmode\addvspace{\hprose@savedvspace}\fi
+	\ignorespacesafterend
+}
+
+\makeatother
+
+% hverse: nested indentation with obeylines
+\makeatletter
+
+% defaults
+\newdimen\hverse@hindent@default  \hverse@hindent@default=\allttsubsequentindent
+\newdimen\hverse@vspace@default   \hverse@vspace@default=0pt
+\newdimen\hverse@twidth@default   \hverse@twidth@default=\maxdimen
+
+% option state
+\newdimen\hverse@temphindent
+\newdimen\hverse@tempvspace
+\newdimen\hverse@temptwidth
+
+%first-line flag and saved tokens
+\newif\ifhverse@firstline
+\newtoks\hverse@saved@everypar
+
+% flag for minipage mode
+\newif\ifhverse@useminipage
+
+% keys
+\hangtext@defkey{hverse}{hindent}{%
+	\hangtext@setdim\hverse@temphindent{#1}%
+	\ifdim\hverse@temphindent<0pt \hverse@temphindent=0pt\fi
+}
+\hangtext@defkey{hverse}{vspace}{%
+	\hangtext@setdim\hverse@tempvspace{#1}%
+}
+\hangtext@defkey{hverse}{twidth}{%
+	\hangtext@setdim\hverse@temptwidth{#1}%
+	\ifdim\hverse@temptwidth<1sp
+		\PackageWarning{hangtext}{Nonpositive twidth ignored}%
+		\hverse@temptwidth=\maxdimen
+	\fi
+}
+
+% env
+\def\hverse{%
+	\@ifnextchar[{\hverse@withopt}{\hverse@noopt}%
+}
+\def\hverse@withopt[#1]{%
+	\hverse@temphindent=\hverse@hindent@default
+	\hverse@tempvspace=\hverse@vspace@default
+	\hverse@temptwidth=\hverse@twidth@default
+	\hangtext@setkeys{hverse}{#1}%
+	\hverse@checkmode
+}
+\def\hverse@noopt{%
+	\hverse@temphindent=\hverse@hindent@default
+	\hverse@tempvspace=\hverse@vspace@default
+	\hverse@temptwidth=\hverse@twidth@default
+	\hverse@checkmode
+}
+
+% check if we need minipage wrapper
+\def\hverse@checkmode{%
+	\hverse@useminipagefalse
+	\ifvmode\else
+	\ifdim\hverse@temptwidth<\maxdimen
+	\hverse@useminipagetrue
+	\fi
+	\fi
+	\ifhverse@useminipage
+	\hverse@startminipage
+	\else
+	\hverse@start
+	\fi
+}
+
+% minipage wrapper
+\def\hverse@startminipage{%
+	\begin{minipage}{\hverse@temptwidth}%
+	\hangtext@resethang
+	\hverse@start
+}
+\def\endhverse@minipage{%
+	\hverse@end
+	\end{minipage}%
+}
+
+\def\hverse@start{%
+	\par
+	\edef\hverse@savedvspace{\the\hverse@tempvspace}%
+	\edef\hverse@savedhsize{\the\hsize}%
+	\edef\hverse@savedlinewidth{\the\linewidth}%
+	\edef\hverse@savedtextwidth{\the\textwidth}%
+	\edef\hverse@savedcolumnwidth{\the\columnwidth}%
+	\ifvmode\addvspace{\hverse@tempvspace}\fi
+	% apply width constraint early
+	\ifdim\hverse@temptwidth<\maxdimen
+	\hsize=\hverse@temptwidth\relax
+	\linewidth=\hverse@temptwidth\relax
+	\textwidth=\hverse@temptwidth\relax
+	\columnwidth=\hverse@temptwidth\relax
+	\fi
+	\hverse@firstlinetrue
+	\edef\hverse@savedcumulativehang{\the\cumulativehang}%
+	% only capture base state if we are top level (not nested)
+	\ifdim\cumulativehang=0pt
+	\setlength{\baseleftskip}{\leftskip}%
+	\edef\hangtext@basetextedge{\the\dimexpr\@totalleftmargin+\leftskip\relax}%
+	\fi
+	% save paragraph parameters to restore later
+	\edef\hverse@savedtotalleftmargin{\the\@totalleftmargin}%
+	\edef\hverse@savedparskip{\the\parskip}%
+	\edef\hverse@savedparindent{\the\parindent}%
+	\edef\hverse@savedrightskip{\the\rightskip}%
+	\advance\cumulativehang by \hverse@temphindent\relax
+	% reduce the child measure
+	\advance\hangtext@activelevel by 1\relax
+	\advance\linewidth by -\hverse@temphindent\relax
+	% adjust nested-material left margin to respect hverse indentation
+	\setlength{\@totalleftmargin}{\dimexpr\hangtext@basetextedge+\cumulativehang\relax}%
+	% paragraph parameters
+	\parskip=0pt\relax
+	\rightskip=0pt plus 1fil\relax % ragged-right to avoid overfulls in verse
+	\parindent=0pt\relax
+	% overwrite \everypar (no chaining) to avoid recursion; restore at end.
+	\hverse@saved@everypar=\expandafter{\the\everypar}%
+	\everypar{%
+		\ifhverse@firstline
+		\leftskip=\dimexpr\baseleftskip+\hverse@savedcumulativehang\relax
+		\hverse@firstlinefalse
+		\else
+		\leftskip=\dimexpr\baseleftskip+\cumulativehang\relax
+		\fi
+		\hangindent=\hverse@temphindent\relax
+		\hangafter=1\relax
+	}%
+	\obeylines
+	\normalfont
+	\frenchspacing
+	\ignorespaces
+}
+
+\def\endhverse{%
+	\ifhverse@useminipage
+	\endhverse@minipage
+	\else
+	\hverse@end
+	\fi
+}
+
+\def\hverse@end{%
+	\par
+	\everypar=\hverse@saved@everypar
+	\setlength{\cumulativehang}{\hverse@savedcumulativehang}%
+	% restore leftskip to base + restored cumulative hang
+	\leftskip=\dimexpr\baseleftskip+\cumulativehang\relax
+	% restore list left margin
+	\setlength{\@totalleftmargin}{\hverse@savedtotalleftmargin}%
+	% restore paragraph parameters
+	\parskip=\hverse@savedparskip\relax
+	\parindent=\hverse@savedparindent\relax
+	\rightskip=\hverse@savedrightskip\relax
+	\hsize=\hverse@savedhsize\relax
+	\linewidth=\hverse@savedlinewidth\relax
+	\textwidth=\hverse@savedtextwidth\relax
+	\columnwidth=\hverse@savedcolumnwidth\relax
+	\advance\hangtext@activelevel by -1\relax
+	\ifnum\hangtext@activelevel<0 \hangtext@activelevel=0\relax\fi
+	\ifvmode\addvspace{\hverse@savedvspace}\fi
+	\ignorespacesafterend
+}
+
+\makeatother
+
+% hverse*: progressive per-stanza indentation with obeylines
+\makeatletter
+
+% defaults
+\newdimen\hversestar@hindent@default  \hversestar@hindent@default=\allttsubsequentindent
+\newdimen\hversestar@vspace@default   \hversestar@vspace@default=0pt
+\newdimen\hversestar@twidth@default   \hversestar@twidth@default=\maxdimen
+
+% option state
+\newdimen\hversestar@temphindent
+\newdimen\hversestar@tempvspace
+\newdimen\hversestar@temptwidth
+
+% stanza tracking
+\newcount\hversestar@stanzano
+\newif\ifhversestar@firstline
+\newif\ifhversestar@hadtext
+\newif\ifhversestar@seenpar
+
+% saved tokens
+\newtoks\hversestar@saved@everypar
+
+% flag for minipage mode
+\newif\ifhversestar@useminipage
+
+% keys
+\hangtext@defkey{hverse*}{hindent}{%
+	\hangtext@setdim\hversestar@temphindent{#1}%
+	\ifdim\hversestar@temphindent<0pt \hversestar@temphindent=0pt\fi
+}
+\hangtext@defkey{hverse*}{vspace}{%
+	\hangtext@setdim\hversestar@tempvspace{#1}%
+}
+\hangtext@defkey{hverse*}{twidth}{%
+	\hangtext@setdim\hversestar@temptwidth{#1}%
+	\ifdim\hversestar@temptwidth<1sp
+		\PackageWarning{hangtext}{Nonpositive twidth ignored}%
+		\hversestar@temptwidth=\maxdimen
+	\fi
+}
+
+% env
+\@namedef{hverse*}{%
+	\@ifnextchar[{\hversestar@withopt}{\hversestar@noopt}%
+}
+\def\hversestar@withopt[#1]{%
+	\hversestar@temphindent=\hversestar@hindent@default
+	\hversestar@tempvspace=\hversestar@vspace@default
+	\hversestar@temptwidth=\hversestar@twidth@default
+	\hangtext@setkeys{hverse*}{#1}%
+	\hversestar@checkmode
+}
+\def\hversestar@noopt{%
+	\hversestar@temphindent=\hversestar@hindent@default
+	\hversestar@tempvspace=\hversestar@vspace@default
+	\hversestar@temptwidth=\hversestar@twidth@default
+	\hversestar@checkmode
+}
+
+% check if we need minipage wrapper
+\def\hversestar@checkmode{%
+	\hversestar@useminipagefalse
+	\ifvmode\else
+	\ifdim\hversestar@temptwidth<\maxdimen
+	\hversestar@useminipagetrue
+	\fi
+	\fi
+	\ifhversestar@useminipage
+	\hversestar@startminipage
+	\else
+	\hversestar@start
+	\fi
+}
+
+% minipage wrapper
+\def\hversestar@startminipage{%
+	\begin{minipage}{\hversestar@temptwidth}%
+	\hangtext@resethang
+	\hversestar@start
+}
+\def\endhversestar@minipage{%
+	\hversestar@end
+	\end{minipage}%
+}
+
+\def\hversestar@start{%
+	\par
+	\edef\hversestar@savedvspace{\the\hversestar@tempvspace}%
+	\edef\hversestar@savedhsize{\the\hsize}%
+	\edef\hversestar@savedlinewidth{\the\linewidth}%
+	\edef\hversestar@savedtextwidth{\the\textwidth}%
+	\edef\hversestar@savedcolumnwidth{\the\columnwidth}%
+	\ifvmode\addvspace{\hversestar@tempvspace}\fi
+	% apply width constraint early
+	\ifdim\hversestar@temptwidth<\maxdimen
+	\hsize=\hversestar@temptwidth\relax
+	\linewidth=\hversestar@temptwidth\relax
+	\textwidth=\hversestar@temptwidth\relax
+	\columnwidth=\hversestar@temptwidth\relax
+	\fi
+	% initialize stanza tracking
+	\hversestar@stanzano=0
+	\hversestar@firstlinetrue
+	\hversestar@hadtextfalse
+	\hversestar@seenparfalse
+	\edef\hversestar@savedcumulativehang{\the\cumulativehang}%
+	% only capture base state if we are top level (not nested)
+	\ifdim\cumulativehang=0pt
+	\setlength{\baseleftskip}{\leftskip}%
+	\edef\hangtext@basetextedge{\the\dimexpr\@totalleftmargin+\leftskip\relax}%
+	\fi
+	% save paragraph parameters to restore later
+	\edef\hversestar@savedtotalleftmargin{\the\@totalleftmargin}%
+	\edef\hversestar@savedparskip{\the\parskip}%
+	\edef\hversestar@savedparindent{\the\parindent}%
+	\edef\hversestar@savedrightskip{\the\rightskip}%
+	% no \linewidth reduction here
+	\advance\hangtext@activelevel by 1\relax
+	% adjust nested-material left margin to respect hverse* indentation
+	\setlength{\@totalleftmargin}{\dimexpr\hangtext@basetextedge+\cumulativehang\relax}%
+	% paragraph parameters
+	\parskip=0pt\relax
+	\rightskip=0pt plus 1fil\relax
+	\parindent=0pt\relax
+	% save and overwrite \everypar
+	\hversestar@saved@everypar=\expandafter{\the\everypar}%
+	\everypar{%
+		% base position for current stanza
+		\dimen0=\dimexpr\baseleftskip+\hversestar@savedcumulativehang\relax
+		\advance\dimen0 by \hversestar@stanzano\hversestar@temphindent\relax
+		\ifhversestar@firstline
+		\leftskip=\dimen0\relax
+		\hversestar@firstlinefalse
+		\else
+		\leftskip=\dimen0\relax
+		\advance\leftskip by \hversestar@temphindent\relax
+		\fi
+	}%
+	% custom \par
+	\let\hversestar@saved@par\par
+	\def\par{%
+		\ifhmode
+			\hversestar@hadtexttrue
+			\hversestar@seenparfalse
+			\@@par
+		\else
+			\ifhversestar@hadtext
+				\ifhversestar@seenpar
+					\hbox{}%
+				\else
+					\hversestar@seenpartrue
+					\hbox{}%
+					\advance\hversestar@stanzano by 1
+					\hversestar@firstlinetrue
+				\fi
+			\fi
+			\@@par
+		\fi
+	}%
+	\obeylines
+	\normalfont
+	\frenchspacing
+	\ignorespaces
+}
+
+\@namedef{endhverse*}{%
+	\ifhversestar@useminipage
+	\endhversestar@minipage
+	\else
+	\hversestar@end
+	\fi
+}
+
+\def\hversestar@end{%
+	\@@par  % primitive \par to bypass custom definition
+	\let\par\hversestar@saved@par
+	\everypar=\hversestar@saved@everypar
+	\setlength{\cumulativehang}{\hversestar@savedcumulativehang}%
+	% restore leftskip to base + restored cumulative hang (for parent)
+	\leftskip=\dimexpr\baseleftskip+\cumulativehang\relax
+	% restore list left margin
+	\setlength{\@totalleftmargin}{\hversestar@savedtotalleftmargin}%
+	% restore paragraph parameters
+	\parskip=\hversestar@savedparskip\relax
+	\parindent=\hversestar@savedparindent\relax
+	\rightskip=\hversestar@savedrightskip\relax
+	\hsize=\hversestar@savedhsize\relax
+	\linewidth=\hversestar@savedlinewidth\relax
+	\textwidth=\hversestar@savedtextwidth\relax
+	\columnwidth=\hversestar@savedcolumnwidth\relax
+	\advance\hangtext@activelevel by -1\relax
+	\ifnum\hangtext@activelevel<0 \hangtext@activelevel=0\relax\fi
+	\ifvmode\addvspace{\hversestar@savedvspace}\fi
+	\ignorespacesafterend
+}
+
+\makeatother
