@@ -192,7 +192,7 @@ The usual good practice:
 
 ## Acknowledgments
 
-Conceptual grounding from the manuscript and typographic traditions discussed in the documentation, Codex Sinaiticus to Jerome to Harrison, and from the typographic cueing literature. Thanks to the maintainers of `hanging` and `hang` for the prior work, and to the LaTeX tagging project, whose block implementation shaped the 3.0 architecture.
+Conceptual grounding from the manuscript and typographic traditions discussed in the documentation, Codex Sinaiticus to Jerome to Harrison, and from the typographic cueing literature. Thanks to Peter R. Wilson and Andreas Nolda of `hanging` and `hang` for the prior work, and to the LaTeX tagging project, whose block implementation shaped the 3.0 architecture.
 
 ## See also
 
