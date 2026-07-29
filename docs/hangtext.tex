@@ -1,0 +1,947 @@
+\DocumentMetadata{
+  lang=en-US,
+  pdfversion=2.0,
+  pdfstandard={UA-2,a-4f},
+  tagging=on,
+  tagging-setup={activate-all},
+  tagging-setup={math/setup=mathml-SE},
+  tagging-setup={math/alt/use},
+  tagging-setup={table/tagging=true},
+}
+\documentclass[11pt, twoside, openany]{article}
+\usepackage[base]{babel}
+\usepackage{fontspec}
+\usepackage{unicode-math}
+\usepackage{tikz}
+\usepackage{hangtext}
+\usepackage{float}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{lipsum}
+\usepackage[
+activate={true,nocompatibility},
+final,
+tracking=true,
+factor=1100,
+stretch=10,
+shrink=10
+]{microtype}
+\DisableLigatures{encoding = *, family = *} % disable all ligatures
+\let\CheckCommand\providecommand
+\UseMicrotypeSet[protrusion]{basicmath}
+\setlength\parindent{0pt}
+\usepackage{parskip}
+\linespread{1.05}
+\emergencystretch=1.5em % documentation has many unbreakable \texttt runs
+\usepackage{biblatex}
+\addbibresource{sources.bib}
+\usepackage{hyperref}
+\hypersetup{hidelinks}
+
+
+\newcommand{\showlen}[2]{\noindent\texttt{#1} = \the#2\par}
+\newcommand{\pkg}[1]{\textsf{#1}}
+\newcommand{\opt}[1]{\texttt{#1}}
+\newcommand{\cmd}[1]{\texttt{\textbackslash #1}}
+\newcommand{\meta}[1]{\textit{\texttt{#1}}}
+\newcommand{\dimval}[1]{\texttt{#1}}
+\newcommand{\env}[1]{\texttt{#1}}
+\newcommand{\cs}[1]{\texttt{\textbackslash #1}}
+
+
+\newcommand{\testbox}[1]{%
+  \fboxsep=4pt\fboxrule=0.4pt%
+  \fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule}{#1}}}
+
+\newcounter{testnum}
+\newcommand{\test}[1]{%
+  \stepcounter{testnum}%
+  \par\medskip\noindent
+  \textbf{Test \thetestnum: #1}\par\smallskip}
+
+\makeatletter
+
+% tagging hooks
+\newcommand*{\cns@tag@artifact@begin}{}
+\newcommand*{\cns@tag@artifact@end}{}
+\newif\ifcns@luatex
+\cns@luatexfalse
+\ifx\directlua\undefined\else \cns@luatextrue \fi
+\ifcns@luatex
+  \ExplSyntaxOn
+  \AtBeginDocument{
+    \@ifpackageloaded{tagpdf}{
+      \cs_gset:Npn \cns@tag@artifact@begin { \tag_mc_begin:n {artifact} }
+      \cs_gset:Npn \cns@tag@artifact@end   { \tag_mc_end: }
+    }{}
+  }
+  \ExplSyntaxOff
+\fi
+
+%% helpers
+\long\def\cns@ifnotempty#1{%
+  \def\cns@tmp{#1}%
+  \ifx\cns@tmp\@empty
+    \expandafter\@gobble
+  \else
+    \expandafter\@firstofone
+  \fi}
+
+%% counter (scoped to chapter if present, else section)
+\@ifundefined{chapter}%
+  {\def\cns@parent{section}}%
+  {\def\cns@parent{chapter}}
+\newcounter{EnvDefinition}[\cns@parent]
+\renewcommand{\theEnvDefinition}{%
+  \csname the\cns@parent\endcsname.\arabic{EnvDefinition}}
+
+%% shared dimensions
+\newbox\cns@box
+\newdimen\cns@boxsep  \cns@boxsep=0.9em
+\newdimen\cns@boxrule \cns@boxrule=0.4pt
+\newdimen\cns@indent  \cns@indent=2em
+
+% EnvDefinition
+\newenvironment{EnvDefinition}[1][]{%
+  \par\addvspace{0.5\baselineskip plus 2pt}%
+  \refstepcounter{EnvDefinition}%
+  \protected@edef\@currentcounter{EnvDefinition}%
+  \setbox\cns@box=\vbox\bgroup
+    \hsize=\linewidth
+    \advance\hsize -2\cns@boxsep
+    \advance\hsize -2\cns@boxrule
+    \linewidth=\hsize \columnwidth=\hsize
+    \parindent=\z@
+    \noindent\textbf{\sffamily Definition~\theEnvDefinition
+      \cns@ifnotempty{#1}{\ \mdseries\sffamily(#1)}%
+    }\strut.\par\nobreak
+    \@afterindentfalse\@afterheading
+    \leftskip=\cns@indent\relax
+    \ignorespaces
+}{%
+    \par
+  \egroup
+  \vbox{%
+    \cns@tag@artifact@begin\hrule height \cns@boxrule\cns@tag@artifact@end
+    \hbox{%
+      \cns@tag@artifact@begin\vrule width \cns@boxrule\cns@tag@artifact@end
+      \hskip\cns@boxsep
+      \vbox{\vskip\cns@boxsep \box\cns@box \vskip\cns@boxsep}%
+      \hskip\cns@boxsep
+      \cns@tag@artifact@begin\vrule width \cns@boxrule\cns@tag@artifact@end
+    }%
+    \cns@tag@artifact@begin\hrule height \cns@boxrule\cns@tag@artifact@end
+  }%
+  \par\addvspace{0.5\baselineskip plus 2pt}%
+}
+
+% TodoNote
+\newenvironment{TodoNote}[1][]{%
+  \par\addvspace{0.5\baselineskip plus 2pt}%
+  \setbox\cns@box=\vbox\bgroup
+    \hsize=\linewidth
+    \advance\hsize -10pt
+    \linewidth=\hsize \columnwidth=\hsize
+    \parindent=\z@
+    \noindent\textbf{\sffamily Note\cns@ifnotempty{#1}{ \textmd{(#1)}}.}%
+    \par\nobreak
+    \@afterindentfalse\@afterheading
+    \leftskip=\cns@indent\relax
+    \ignorespaces
+}{%
+  \par
+  \egroup
+  \vbox{\hbox{%
+    \cns@tag@artifact@begin\vrule width 4pt\cns@tag@artifact@end
+    \hskip 6pt\relax
+    \box\cns@box
+  }}%
+  \par\addvspace{0.5\baselineskip plus 2pt}%
+}
+
+% description replacement
+\newenvironment{widedesc}[1][12em]{%
+  \list{}{%
+    \labelwidth=#1\relax
+    \labelsep=0.5em\relax
+    \leftmargin=\labelwidth \advance\leftmargin\labelsep
+    \itemindent=\z@
+    \def\makelabel##1{\normalfont\bfseries ##1\hfil}%
+  }%
+}{\endlist}
+
+\makeatother
+
+
+
+
+
+
+\title{\texttt{hangtext.sty}\\[0.5\baselineskip]
+  \large hanging indentation}
+\author{Daniel Quigley}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\pkg{hangtext} provides three environments for hanging-indent layouts: \env{hprose} for prose; \env{hverse} for verse with uniform block indentation; \env{hverse*} for verse with progressive per-stanza indentation. Nested instances accumulate. Options are supplied by keyval and cover indent size, vertical spacing, text width, and horizontal justification. Nested lists, and under the \LaTeX{} tagging framework all standard display environments, are constrained to the container width.
+\end{abstract}
+
+\tableofcontents
+
+
+\section{Loading}
+
+\begin{verbatim}
+\usepackage{hangtext}
+\end{verbatim}
+
+There are no explicit dependencies: the package patches nothing at \cs{begin\{document\}}. The only requirement is an e-\TeX{} capable engine for \cs{dimexpr}, which every current engine satisfies. No class is assumed.
+
+\section{Prior work}\label{sec:priorart}
+
+Three routes produce visually similar output to \pkg{hangtext} and cover most cases. They are worth distinguishing both to clarify what \pkg{hangtext} adds and to identify cases where it would be overkill.
+
+\subsection{\cs{hangindent} and \cs{hangafter}}
+
+The \TeX{} primitives \cs{hangindent} and \cs{hangafter} attach a per-paragraph hanging indent: \cs{hangindent} sets the depth, \cs{hangafter} the number of lines after (positive) or before (negative) which the indent applies. Both reset at every \cs{par}, so a multi-paragraph hang requires reapplying them, typically via \cs{everypar}.
+
+Related replacement with \cs{leftskip} set to the hang depth and \cs{parindent} set to the negative of that depth. The negative \cs{parindent} cancels \cs{leftskip} for the first line of the surrounding group; \cs{leftskip} then persists across paragraphs until the group closes, producing a block-level hang rather than a paragraph-local one. This is the technique \pkg{hangtext} uses internally (see Section~\ref{sec:semantics}). Used directly, it omits four things \pkg{hangtext} provides: cumulative tracking under nesting, so nested hangs compose rather than overwrite; capture of the ambient \cs{leftskip} on entry, so the hang adds to rather than replaces an outer environment's indentation; clearing of \cs{parindent} after the first paragraph fires, so paragraphs resuming after display math or lists do not acquire a second flush-left first line; propagation of the reduced measure to nested display material, so lists and block environments end at the container's right edge rather than overflowing by the hang.
+
+\subsection{The \pkg{hanging} package}
+
+\pkg{hanging} \cite{wilsonhanging} provides \cs{hangpara}\texttt{\{}\meta{indent}\texttt{\}\{}\meta{after}\texttt{\}}, a wrapper around \cs{hangindent}, \cs{hangafter}, and \cs{noindent}; and \env{hangparas}, an environment that installs \cs{hangpara} in \cs{everypar} so that every paragraph is independently hung. Hanging is therefore strictly per-paragraph: each paragraph has its own first line flush and its own continuation lines indented; nesting does not accumulate; \cs{leftskip} is untouched. The package also activates punctuation characters to provide hanging punctuation, a feature its own documentation describes as best suppressed and for which \pkg{microtype} is the current solution.
+
+\pkg{hangtext}'s \env{hprose} differs in kind, not degree: a single block-level hang in which only the block's first paragraph is pulled back, intervening paragraphs stay indented, and the hang accumulates under nesting.
+
+\subsection{The \pkg{hang} package}
+
+\pkg{hang} \cite{noldahang} builds its environments on top of \LaTeX's \cs{list}: \env{hangingpar}, \env{hanginglist}, and \env{compacthang} for hanging paragraphs, plus \env{labeledpar}, \env{labeledlist}, and \env{compactlabel} for labeled variants. Lengths are set via \cs{setlength}\texttt{\{}\cs{hangingindent}\texttt{\}}\allowbreak\texttt{\{}\meta{length}\texttt{\}} and \cs{setlength}\texttt{\{}\cs{hangingleftmargin}\texttt{\}}\allowbreak\texttt{\{}\meta{length}\texttt{\}} before the environment.
+
+Two consequences follow from the \cs{list} basis. First, every \pkg{hang} environment carries list spacing parameters (\cs{topsep}, \cs{parsep}, \cs{itemsep}), with the spacing interactions that implies; the \env{compact} variants zero them. Second, labeled hanging paragraphs are directly supported, which \pkg{hangtext} does not provide. In the other direction, \pkg{hang} does not nest cumulatively (consecutive \env{hangingpar}s produce independent list items) and does not address verse layout, widths, justification, or measure propagation.
+
+\section{Background: typographic cueing and structural arrangement}\label{sec:background}
+
+\pkg{hangtext} produces hanging indentation; what an author chooses to do with that capability belongs to a separate set of questions drawn from typographic rhetoric, educational psychology, and editorial practice. This section sketches literature most relevant to the package's design choices.
+
+\subsection{Typographic cueing}\label{subsec:cueing}
+
+\emph{Typographic cueing} is the term used in educational psychology for the deliberate use of typography (bold, italic, underlining, indentation, spacing) to mark the relative importance or structure of textual content, over and above the linguistic signals already present in the author's prose (word choice, sentence construction, discourse markers). \cite{waller1987}, reviewing this literature, concludes that cueing reliably improves \emph{immediate} recall of cued material, but generally does not improve delayed recall; in some studies, it disadvantages the uncued material that a reader would otherwise have attended to \cite{glynndivesta1979}. Methodological criticisms of individual studies are common \cite{hartleybartlettbranthwaite1980}. The conclusion should be read as: cueing is not a free intervention, and its benefits are narrower than its advocates sometimes claim. \pkg{hangtext} provides one kind of cue; nothing about the package, however, argues for its application to a given manuscript!
+
+A separate strand, associated most closely with \cite{hartleyburnhill1977}, argues that structural hierarchy in instructional text should be conveyed by the systematic use of \emph{space} (line spacing, indentation, grids), rather than by ornamentation (varied type weight, size, rule). Waller is partly sympathetic to the principle; it corrects amateur overcomplication. He also notes that restricting the writer to space alone treats typographic signaling, which has developed functionally over centuries, as fundamentally irrational and in need of reform, without offering a cognitive argument for the restriction. \pkg{hangtext}, again, takes no position in that debate; it supplies a space-based signal, and leaves its combination with other devices to the author.
+
+A third strand, of which \cite{shebilskerotondo1981} is a representative case, proposes novel cueing conventions: bold type for ``important'' ideas, square brackets for the ``gist'' of each idea. Waller's critique of such schemes, which applies generally, is that they repurpose typographic devices whose existing meanings conflict with the new assignments, and that they reduce reading to instructor-designated rote recall. The practical consequence for users of \pkg{hangtext}: a hanging indent is a conventional signal for continuation, quotation, or subordinate relationship; using it for something else imposes cognitive cost on readers who will bring the conventional reading to the page by default.
+
+\subsection{Ekthesis and eisthesis}\label{sec:ekthesis}
+
+Two terms from Greek papyrology name the layout operations of \pkg{hangtext}. \emph{Ekthesis} `setting out' is a line whose opening extends leftward into the margin relative to the surrounding text; \emph{eisthesis} `setting in' is its inverse: a line indented rightward relative to the surrounding text.
+
+The Christian application is the most directly relevant to \pkg{hangtext}, since it concerns prose rather than verse or list structure. \textit{Codex Sinaiticus} (fourth century) uses ekthesis as a paragraph marker: the first letter of a new sense unit is set into the left margin to a degree the scribe judges appropriate. \cite{yoon2023}, examining Galatians as a test case, argues that the ekthesis there functions consistently as paragraph delimitation, supporting the view of how ekthesis operates in the major fourth- and fifth-century majuscules, which otherwise present text in \emph{scriptio continua}. The technique is not invariably restrained; at Mark 9:4--10, Sinaiticus marks each of six successive verses with extreme ekthesis on an outset \textsc{kai}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[scale=0.2,alt={Example of ekthesis on an outset \textsc{kai}}]{CSinaiMarkTransfiguration.jpg}
+    \caption{Example of ekthesis on an outset \textsc{kai}}
+    \label{fig:ekth}
+\end{figure}
+
+As to why this particular reading aid may have been used, from \cite{head2008gospel}:
+
+\begin{quote}
+    The extreme paragraphing had an impact on the public reading of Mark using Sinaiticus, with much more regular and pronounced pauses and potentially the fragmentation of the connected narrative.
+\end{quote} 
+
+\pkg{hangtext}'s relationship to this tradition is the same as its relationship to Harrison's per cola layouts (see Section~\ref{sec:percola}): the package mechanizes the visual operation, but at the granularity of an environment rather than of an individual line. The first line of an \env{hprose} block is outset relative to the rest, which realizes ekthesis at block scale; successive nested \env{hprose}s step the text inward, which realizes eisthesis at block scale. Ancient scribes, by contrast, decided per-line whether to project or indent, and the freedom this gave them is not directly available in \pkg{hangtext}'s environment model. A faithful reconstruction of the Sinaiticus Mark 9 layout would require one \env{hprose} per verse, or direct \cs{hangindent} manipulation outside an \env{hprose} environment. In this way, \env{hprose} is a block-level approximation.
+
+\subsection{Per cola et commata}\label{sec:percola}
+
+A specific tradition of structural arrangement, \emph{per cola et commata} (`by clauses and phrases'), originated in Roman schooltext practice, and was adopted by Jerome for his translation of the prophets, where each syntactic or rhetorical unit was set on its own line to aid oral reading. \cite{harrison2007} adapts the convention to modern English: a sentence begins flush, subordinate clauses step in, parallel items line up with their predecessors, and modifiers sit under their heads. Harrison's illustration is the preamble to the United States Constitution:
+
+\begin{quote}
+    We the people of the United States, in order to form a more perfect union, establish justice, insure domestic tranquility, provide for the common defense, promote the general welfare, and secure the blessings of liberty to ourselves and our posterity, do ordain and establish this Constitution for the United States of America.
+\end{quote}
+
+\noindent rendered with nested \env{hverse} as follows:
+
+\begin{verbatim}
+    \begin{hverse}
+    We the people of the United States,
+        \begin{hverse}
+            in order to form a more perfect union,
+            establish justice,
+            insure domestic tranquility,
+            provide for the common defense,
+            promote the general welfare,
+            and secure the blessings of liberty
+            to ourselves and our posterity,
+        \end{hverse}
+    do ordain
+    and establish this Constitution
+    for the United States of America.
+\end{hverse}
+\end{verbatim}
+
+\noindent Which then produces:
+
+\begin{hverse}
+    We the people of the United States,
+        \begin{hverse}
+            in order to form a more perfect union,
+            establish justice,
+            insure domestic tranquility,
+            provide for the common defense,
+            promote the general welfare,
+            and secure the blessings of liberty
+            to ourselves and our posterity,
+        \end{hverse}
+    do ordain
+    and establish this Constitution
+    for the United States of America.
+\end{hverse}
+
+What \env{hverse} produces here has three indent levels:
+\begin{itemize}
+  \item Level 0, the outer margin: only the very first line of the outer \env{hverse} (``We the people\ldots'').
+  \item Level 1, one \opt{hindent} in: every subsequent line of the outer \env{hverse} that is not inside the inner environment; this includes ``in order to\ldots'', ``do ordain'', ``and establish\ldots'', ``for the United States\ldots''.
+  \item Level 2, two \opt{hindent}s in: the continuation lines of the inner \env{hverse} (``establish justice'' through ``to ourselves and our posterity''), since its first line sits at level 1.
+\end{itemize}
+
+Each \env{hverse} places its own first line at the saved outer hang and its subsequent lines at its own hang, with implicit environment grouping restoring the outer state on exit.
+
+\begin{TodoNote}
+    This rendering does not precisely reconstruct Harrison's arrangement. In Harrison's layout, the bracketed purpose-clause would sit at a single indent level with ``do ordain'' returning to level 0; \env{hverse} cannot return a line to level 0 after it has emitted any subsequent line past the first, because the first-line-at-outer behavior fires only once per environment entry. A strict Harrison layout requires either manual \cs{leftskip} management inside a single \env{hverse} or a future \pkg{hangtext} extension exposing an ``initial line at inner indent'' option. The rendering \pkg{hangtext} does produce is internally consistent, but should not be read as a faithful display of syntactic subordination: ``do ordain'' is the main verb of the main clause, not a subordinate unit, yet it shares level 1 with the genuine subordinate ``in order to\ldots''. Authors using \env{hverse} for structural arrangement should understand the levels as a property of environment nesting, not as a depth-first traversal of a syntax tree.
+\end{TodoNote}
+
+\subsection{Contemporary examples}\label{subsec:contemporary}
+
+\cite{jewett1981} proposes a ``multi-level'' writing scheme in which distinct indentation levels signal distinct priorities of argument, the aim being to allow a reader to skip lower-importance paragraphs. Waller's critique of the proposal is substantive: the article was printed sideways on the page to accommodate the indents, with resulting line lengths that hindered the quick scanning the scheme was meant to enable; the hierarchy turned out not to be skippable, because higher-level paragraphs referred to lower-level ones; and Jewett himself reported that writing hierarchically required \emph{more} explicit verbalization of structure, not less. The package can produce Jewett-style multi-level arrangements (\env{hverse*} in particular is well-suited to them), but readers of this documentation should treat Jewett as a cautionary tale about the limits of visual hierarchy, and certainly not as a model to emulate uncritically!
+
+\cite{stewart2015} is a different case: a PhD dissertation in architecture written without most conventional English punctuation or capitalization, using typographic arrangement and Nisga'a-language insertions as an anticolonial intervention in academic form. Stewart's choices are rhetorical and political, rather than cognitive-pedagogical; the author's own account in \cite{stewart2019} frames them as ``decolonizing syntax''. \pkg{hangtext} can serve such work.
+
+A familiar analogue for mechanical hanging indentation is the whitespace-structured block layout of source code. The comparison is suggestive, but imperfect. In off-side-rule languages (Python, Haskell, F\#), indentation is \emph{syntactically binding}: the visual structure and the computational structure coincide by construction, and misaligned whitespace is a semantic error. In prose, indentation is purely a cue for the reader, and does not alter what the text means. The analogy is, therefore, useful as motivation; both uses exploit two-dimensional page space to reveal modular structure; but it does not translate into a theory of how readers process the cue, and should not be read as evidence that indentation ``works'' in prose because it works in code.
+
+\section{How hang is built}\label{sec:semantics}
+
+All three environments share a common positioning strategy:
+
+\begin{itemize}
+  \item The outer \cs{leftskip} is captured once, as \cs{baseleftskip}, at entry to the outermost \pkg{hangtext} environment. All subsequent positioning is computed relative to it, so the package respects indentation imposed by surrounding constructs (theorems, lists, block quotes).
+  \item A shared counter, \cs{cumulativehang}, tracks the total hang accumulated by nested environments. Each level's \opt{hindent} is added on entry and restored on exit.
+  \item Inside the environment, \cs{leftskip} is set to \cs{baseleftskip}~$+$~\cs{cumulativehang} (the indented level). A negative \cs{parindent} (\env{hprose}) or a conditional per-line \cs{leftskip} override (\env{hverse}, \env{hverse*}) places the \emph{first} displayed line back at the outer level.
+  \item \cs{@totalleftmargin} and \cs{linewidth} are maintained alongside \cs{leftskip}: \cs{@totalleftmargin} is set to the container's left text edge and \cs{linewidth} is reduced by each level's \opt{hindent}. Nested display material reads these two registers to compute its own measure (Section~\ref{sec:lists}).
+\end{itemize}
+
+The first-line pullback in \env{hprose} is implemented by setting \cs{parindent} to $-\opt{hindent}$ on entry; an \cs{everypar} hook clears it to \texttt{0pt} after the first paragraph fires. As a consequence, paragraphs that resume after a display equation, a list, or any other \cs{par}-breaking construct continue at the indented \cs{leftskip} rather than acquiring a second pullback at flush-left. The \env{hverse} and \env{hverse*} environments achieve the same effect through their per-line \cs{leftskip} override and a first-line flag.
+
+\begin{TodoNote}
+    Hanging is at the block level instead of the per-paragraph level. Only the \emph{first} paragraph of an \env{hprose} environment gets a pulled-back first line; later paragraphs inside the same environment simply start at the indented level; in this way, the hang is a \emph{property of the block}, not of each paragraph.
+\end{TodoNote}
+
+
+
+
+\section{The \env{hprose} environment}\label{sec:environment}
+
+\begin{verbatim}
+    \begin{hprose}[<options>]
+      ...prose...
+    \end{hprose}
+\end{verbatim}
+
+\subsection*{Options}\label{subsec:options}
+
+\begin{table}[h]
+    \centering
+    \tagpdfsetup{table/header-rows={1}}
+    \begin{tabular}{@{}>{\ttfamily}l l p{0.6\linewidth}@{}}
+      \toprule
+      \normalfont \bfseries Key & \bfseries Default & \bfseries Meaning \\
+      \midrule
+      hindent       & \texttt{2em}         & hang depth added on entry \\
+      vspace        & \texttt{0pt}         & vertical space before and after the environment \\
+      justification & \textit{flush}       & one of \opt{raggedright}, \opt{raggedleft}, \opt{centering} \\
+      twidth        & \textit{unbounded}   & text width; triggers \env{minipage} wrapping when set in horizontal mode (see Section~\ref{sec:twidth}) \\
+      \bottomrule
+    \end{tabular}
+    \caption{Environment options}
+    \label{tab:environops}
+\end{table}
+
+\begin{TodoNote}
+    An empty value (\opt{hindent=}) produces a package warning and leaves the default in force; a nonpositive \opt{twidth} is likewise warned about and ignored.
+\end{TodoNote}
+
+
+
+\subsection*{Example}\label{subsec:examples}
+
+\begin{verbatim}
+\begin{hprose}[hindent=2.5em, vspace=4pt]
+The opening line sits flush with the outer margin; continuation
+lines wrap at the indented level, and so do subsequent paragraphs
+until the environment ends.
+
+A second paragraph, fully at the indented level.
+\end{hprose}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hprose}[hindent=2.5em, vspace=4pt]
+The opening line sits flush with the outer margin; continuation
+lines wrap at the indented level, and so do subsequent paragraphs
+until the environment ends. \lipsum[1][1-3]
+
+A second paragraph, fully at the indented level. \lipsum[2][1-3]
+\end{hprose}
+
+\begin{verbatim}
+First paragraph, no hprose involvement.
+
+Second paragraph, still outside any hprose environment.
+\end{verbatim}
+
+\noindent produces:
+
+First paragraph, no hprose involvement.
+
+Second paragraph, still outside any hprose environment.
+
+\subsection*{Basic hprose (default options)}
+
+\begin{verbatim}
+\begin{hprose}
+First paragraph inside basic hprose.  The hanging indent should apply
+to continuation lines, but tagging should remain clean.
+
+Second paragraph inside hprose.  Each paragraph triggers \texttt{everypar};
+if the tagging hooks were overwritten, warnings appear here.
+\end{hprose}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hprose}
+First paragraph inside basic hprose. The hanging indent should apply
+to continuation lines, but tagging should remain clean. \lipsum[3][1-3]
+
+Second paragraph inside hprose. Each paragraph triggers \texttt{everypar};
+if the tagging hooks were overwritten, warnings appear here.
+\lipsum[4][1-3]
+\end{hprose}
+
+\subsection*{hprose with options}
+
+\begin{verbatim}
+\begin{hprose}[hindent=3em, vspace=6pt]
+Paragraph with custom hanging indent (3em) and vertical space.
+
+Another paragraph inside the options test.
+\end{hprose}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hprose}[hindent=3em, vspace=6pt]
+Paragraph with custom hanging indent (3em) and vertical space.
+\lipsum[5][1-3]
+
+Another paragraph inside the options test. \lipsum[6][1-3]
+\end{hprose}
+
+\subsection*{Nested hprose}
+
+\begin{verbatim}
+\begin{hprose}
+Outer hprose, level one.
+
+\begin{hprose}
+Inner hprose, level two.  Cumulative hang should stack.
+Second paragraph at level two.
+\end{hprose}
+
+Back to level one after inner closes.
+\end{hprose}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hprose}
+Outer hprose, level one. \lipsum[7][1-3]
+
+\begin{hprose}
+Inner hprose, level two. Cumulative hang should stack.
+\lipsum[8][1-2]
+\end{hprose}
+
+Back to level one after inner closes. \lipsum[9][1-3]
+\end{hprose}
+
+\subsection*{hprose with list inside}
+
+\begin{verbatim}
+\begin{hprose}
+Paragraph before the list.
+
+\begin{itemize}
+  \item First item inside hprose.
+  \item Second item.  The list computes its measure from
+        \linewidth, which hprose reduces; the item's right edge
+        stays at the container edge.
+\end{itemize}
+
+Paragraph after the list, still inside hprose.
+\end{hprose}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hprose}
+Paragraph before the list. \lipsum[10][1-3]
+
+\begin{itemize}
+  \item First item inside hprose.
+  \item Second item.  The list computes its measure from
+        \cs{linewidth}, which hprose reduces; the item's right edge
+        stays at the container edge.
+\end{itemize}
+
+Paragraph after the list, still inside hprose. Note that this
+paragraph sits at the indented level rather than pulling back to
+flush-left, because \cs{everypar} clears \cs{parindent} after the
+block's first paragraph fires. \lipsum[11][1-3]
+\end{hprose}
+
+\subsection*{Justification}
+
+\begin{verbatim}
+\begin{hprose}[justification=raggedright]
+Ragged-right hanging prose, useful when the measure is narrow
+enough that full justification would produce loose lines.
+\end{hprose}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hprose}[justification=raggedright]
+Ragged-right hanging prose, useful when the measure is narrow
+enough that full justification would produce loose lines.
+\lipsum[12][1-2]
+\end{hprose}
+
+\noindent The remaining two values, \opt{raggedleft} and \opt{centering}, apply the corresponding glue while keeping the indented \cs{leftskip} as the reference edge:
+
+\begin{hprose}[justification=raggedleft]
+Ragged-left hanging prose; line endings align at the right edge
+of the container. \lipsum[13][1-2]
+\end{hprose}
+
+\begin{hprose}[justification=centering]
+Centered hanging prose. \lipsum[14][1-2]
+\end{hprose}
+
+\begin{TodoNote}
+    Under \opt{raggedleft} and \opt{centering} the negative \cs{parindent} still applies literally, so the block's first line is shifted left of where pure centering or right alignment would put it. Whether the pullback should be suppressed under these modes is an open design question; if the current behavior is unwanted, set \opt{hindent} to \texttt{0pt} for that block.
+\end{TodoNote}
+
+\section{The \env{hverse} environment}
+
+For verse input: \cs{obeylines} is active, so each source line becomes an output line. Long lines that overflow are wrapped with \cs{hangindent}~$=$~\opt{hindent}, placing runover one level deeper and visually marking it as continuation.
+
+\begin{verbatim}
+\begin{hverse}[<options>]
+Line one.
+Line two.
+\end{hverse}
+\end{verbatim}
+
+\subsection*{Options}
+
+\begin{table}[h]
+    \centering
+    \tagpdfsetup{table/header-rows={1}}
+    \begin{tabular}{@{}>{\ttfamily}l >{\raggedright\arraybackslash}p{0.4\linewidth} p{0.36\linewidth}@{}}
+      \toprule
+  \normalfont \bfseries Key & \bfseries Default & \bfseries Meaning \\
+  \midrule
+  hindent & \cs{allttsubsequentindent} (\texttt{2em} fallback) & hang depth \\
+  vspace  & \texttt{0pt}       & vertical space before and after \\
+  twidth  & \textit{unbounded} & text width; triggers \env{minipage} wrapping when set in horizontal mode \\
+  \bottomrule
+\end{tabular}
+    \caption{Environment options}
+    \label{tab:environops2}
+\end{table}
+
+There is no \opt{justification} key; verse is set ragged-right automatically to avoid overfull lines under \cs{obeylines}.
+
+\subsection*{Example}
+
+\begin{verbatim}
+\begin{hverse}[hindent=2em, vspace=4pt]
+First line at the outer margin.
+Second line indented.
+Third line indented.
+\end{hverse}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hverse}[hindent=2em, vspace=4pt]
+First line at the outer margin.
+Second line indented.
+Third line indented.
+\end{hverse}
+
+\subsection{basic hverse (default options)}
+
+\begin{verbatim}
+\begin{hverse}
+First line of verse.
+Second line, should be indented by obeylines mechanism.
+Third line continues.
+\end{hverse}
+
+Paragraph after hverse.
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hverse}
+First line of verse.
+Second line, should be indented by obeylines mechanism.
+Third line continues.
+\end{hverse}
+
+Paragraph after hverse.
+
+
+
+
+\subsection{nested hverse}
+
+\begin{verbatim}
+\begin{hverse}
+Outer verse, first line.
+Outer verse, second line.
+
+\begin{hverse}
+Inner verse, first line (further indented).
+Inner verse, second line.
+\end{hverse}
+
+Back to outer verse.
+\end{hverse}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hverse}
+Outer verse, first line.
+Outer verse, second line.
+
+\begin{hverse}
+Inner verse, first line (further indented).
+Inner verse, second line.
+\end{hverse}
+
+Back to outer verse.
+\end{hverse}
+
+
+\subsection{hverse with options}
+
+\begin{verbatim}
+\begin{hverse}[hindent=3em, vspace=4pt]
+Verse with custom indent.
+Second line of custom verse.
+\end{hverse}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hverse}[hindent=3em, vspace=4pt]
+Verse with custom indent.
+Second line of custom verse.
+\end{hverse}
+
+
+
+\subsection{hverse with list}
+
+\begin{verbatim}
+\begin{hverse}
+Line before list.
+
+\begin{enumerate}
+  \item Numbered item inside hverse.
+  \item Another item.
+\end{enumerate}
+
+Line after list.
+\end{hverse}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hverse}
+Line before list.
+
+\begin{enumerate}
+  \item Numbered item inside hverse.
+  \item Another item.
+\end{enumerate}
+
+Line after list.
+\end{hverse}
+
+\section{The \env{hverse*} environment}
+
+Like \env{hverse}, but with progressive per-stanza indentation. Stanzas are separated by blank lines; stanza $N$ (counting from zero) has its first line at $N \times \opt{hindent}$ beyond the outer level, and non-initial lines of that stanza one further \opt{hindent} beyond that.
+
+\begin{verbatim}
+\begin{hverse*}[hindent=1.5em, vspace=4pt]
+Stanza zero line one.
+Stanza zero line two.
+
+Stanza one line one.
+Stanza one line two.
+
+Stanza two line one.
+Stanza two line two.
+\end{hverse*}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hverse*}[hindent=1.5em, vspace=4pt]
+Stanza zero line one.
+Stanza zero line two.
+
+Stanza one line one.
+Stanza one line two.
+
+Stanza two line one.
+Stanza two line two.
+\end{hverse*}
+
+Options are the same as for \env{hverse}.
+
+\begin{TodoNote}
+    \env{hverse*} does not advance \cs{cumulativehang}; stanza depth is tracked separately, and \cs{linewidth} is accordingly not reduced either. A \env{hprose} nested inside \env{hverse*}, therefore, anchors from the pre-\env{hverse*} position, not from the current stanza's indent level, and a list inside a later stanza ends at the container's right edge rather than tracking the stanza's left edge. If this matters for your document, wrap the nested environment in a \env{hverse} or \env{hprose} to introduce an explicit hang.
+\end{TodoNote}
+
+
+\section{Nesting}
+
+Nesting accumulates \cs{cumulativehang} across \env{hprose} and \env{hverse} (not \env{hverse*}; see note above). Mixed nesting (\env{hverse} inside \env{hprose} or vice versa) works.
+
+\begin{verbatim}
+\begin{hprose}
+Outer prose.
+  \begin{hprose}[hindent=3em]
+  Inner prose, indented further.
+  \end{hprose}
+Back to outer prose.
+\end{hprose}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hprose}
+Outer prose. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam vehicula ipsum ex, sit amet molestie est tincidunt sed. Donec hendrerit lectus ultricies vulputate semper. Nunc posuere leo ut sollicitudin mattis. Sed fringilla arcu consequat, commodo dui nec, porttitor erat.
+\begin{hprose}[hindent=3em]
+Inner prose, indented further. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam vehicula ipsum ex, sit amet molestie est tincidunt sed. Donec hendrerit lectus ultricies vulputate semper. Nunc posuere leo ut sollicitudin mattis. Sed fringilla arcu consequat, commodo dui nec, porttitor erat.
+\end{hprose}
+Back to outer prose. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam vehicula ipsum ex, sit amet molestie est tincidunt sed. Donec hendrerit lectus ultricies vulputate semper. Nunc posuere leo ut sollicitudin mattis. Sed fringilla arcu consequat, commodo dui nec, porttitor erat.
+\end{hprose}
+
+\subsection*{Mixed nesting: verse inside prose}
+
+\begin{verbatim}
+\begin{hprose}
+Prose establishing the hanging block.
+
+\begin{hverse}
+A verse line nested inside the prose hang.
+A second verse line, indented one level further.
+\end{hverse}
+
+Prose resuming at the hprose level.
+\end{hprose}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hprose}
+Prose establishing the hanging block. \lipsum[15][1-2]
+
+\begin{hverse}
+A verse line nested inside the prose hang.
+A second verse line, indented one level further.
+\end{hverse}
+
+Prose resuming at the hprose level. \lipsum[16][1-2]
+\end{hprose}
+
+\subsection*{Mixed nesting: prose inside verse}
+
+\begin{verbatim}
+\begin{hverse}
+Verse line before the prose block.
+
+\begin{hprose}
+A hanging prose paragraph nested inside the verse, with ordinary
+paragraph breaking despite the surrounding obeylines.
+\end{hprose}
+
+Verse line after the prose block.
+\end{hverse}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hverse}
+Verse line before the prose block.
+
+\begin{hprose}
+A hanging prose paragraph nested inside the verse, with ordinary
+paragraph breaking despite the surrounding obeylines.
+\lipsum[17][1-2]
+\end{hprose}
+
+Verse line after the prose block.
+\end{hverse}
+
+\section{Nested display material and the container measure}\label{sec:lists}
+
+The three environments narrow the text through \cs{leftskip}, a register that display environments discard: the classic kernel \cs{list} zeroes it, and the tagged block implementation does the same. What such environments read instead are \cs{@totalleftmargin} for their left edge and \cs{linewidth} for their width:
+
+\begin{verbatim}
+\linewidth        <- \linewidth - \rightmargin - \leftmargin
+\@totalleftmargin <- \@totalleftmargin + \leftmargin
+\parshape 1 \@totalleftmargin \linewidth
+\end{verbatim}
+
+\pkg{hangtext} therefore maintains both registers: on entry each environment sets \cs{@totalleftmargin} to the container's left text edge (base edge plus cumulative hang) and reduces \cs{linewidth} by its own \opt{hindent}; on exit the saved values are restored exactly. Any display environment opened inside then computes the correct measure on its own, with no patching: its left edge respects the hang, its right edge lands at the container's right edge, and any right inset the environment itself requests (\env{quote}, \env{quotation}) is preserved on top of that.
+
+On an untagged engine, the kernel \cs{list} performs the computation above; under \opt{tagging=on}, the current kernel reimplements \env{itemize}, \env{enumerate}, \env{description}, \env{quote}, \env{quotation}, \env{verse}, \env{center}, \env{flushleft}, \env{flushright}, and \env{verbatim} as block environments that never call \cs{list} at all, but their geometry reads the same two registers, and so inherits the same correction.
+
+\begin{verbatim}
+\begin{hprose}
+Prose before the list.
+\begin{itemize}
+  \item First item; right edge at the container edge.
+  \item Second item.
+\end{itemize}
+Prose after.
+\end{hprose}
+\end{verbatim}
+
+\begin{hprose}
+Prose before the list. \lipsum[18][1-3]
+\begin{itemize}
+  \item First item; right edge at the container edge.
+  \item Second item.
+\end{itemize}
+Prose after. \lipsum[19][1-3]
+\end{hprose}
+
+\subsection*{Compatibility}
+
+Because no command is patched and no hook is registered, load order relative to other packages is immaterial, and \pkg{enumitem} and similar list-reshaping packages work unmodified. The visible consequence of the design is that \cs{linewidth} is genuinely narrower inside the environments: constructs that measure it, such as \cs{includegraphics[width=\textbackslash linewidth]} or \env{tabular*}\texttt{\{}\cs{linewidth}\texttt{\}}, size themselves to the hanging text block rather than to the full column. This is intended; it makes such material align with the visual block.
+
+\begin{TodoNote}
+    On untagged engines, \env{center}, \env{flushleft}, \env{flushright}, and \env{verbatim} are trivlist-based, and compute no measure of their own, so they ignore the hang; under \opt{tagging=on} they are block environments and behave correctly.
+\end{TodoNote}
+
+
+
+\section{Width constraint and minipage mode}\label{sec:twidth}
+
+Setting \opt{twidth} restricts the text width inside the environment. The package chooses between two mechanisms automatically:
+
+\begin{description}
+  \item[Vertical mode (between paragraphs).] \cs{hsize}, \cs{linewidth}, \cs{textwidth}, and \cs{columnwidth} are clamped to \opt{twidth} for the duration of the environment. No \env{minipage} is opened. This keeps the tagging structure flat.
+  \item[Horizontal mode (mid-paragraph).] A \env{minipage} of width \opt{twidth} is opened and the environment runs inside it. The enclosing paragraph resumes after the closing tag. Inside the box, the surrounding cumulative hang is reset, since the box itself already sits in the indented paragraph flow.
+\end{description}
+
+Use \opt{twidth} for pull-quotes or for aligning \pkg{hangtext} blocks to a column narrower than the main text block.
+
+\begin{verbatim}
+\begin{hprose}[twidth=0.6\linewidth, hindent=1.5em]
+A narrowed hanging block set between paragraphs; the four width
+registers are clamped for its duration and restored on exit.
+\end{hprose}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{hprose}[twidth=0.6\linewidth, hindent=1.5em]
+A narrowed hanging block set between paragraphs; the four width
+registers are clamped for its duration and restored on exit.
+\lipsum[20][1-2]
+\end{hprose}
+
+\section{Direct calls and TikZ nodes}\label{sec:direct}
+
+The environments are also usable as command pairs (\cs{hprose}\ldots\cs{endhprose}, and likewise for the others), which is the supported route inside constructs that do not accept \cs{begin}/\cs{end} syntax cleanly, TikZ nodes in particular. Two rules govern direct use:
+
+\begin{itemize}
+  \item \cs{hprose}\ldots\cs{endhprose} restores every parameter it touches and may be called bare in running text.
+  \item \cs{hverse} and \cs{hverse*} activate \cs{obeylines} and \cs{frenchspacing}, whose catcode and spacing changes cannot be undone by the end macro alone; direct calls to these two must sit inside a group. A TikZ node body supplies one; bare document text does not.
+\end{itemize}
+
+\begin{verbatim}
+\begin{tikzpicture}
+  \node[draw, text width=16em, align=left] {%
+    \hprose[hindent=1.5em]\relax
+    A hanging paragraph inside a TikZ node; the node's text width
+    provides the measure and the node group scopes the state.%
+    \endhprose
+  };
+\end{tikzpicture}
+\end{verbatim}
+
+\noindent produces:
+
+\begin{tikzpicture}
+  \node[draw, text width=16em, align=left] {%
+    \hprose[hindent=1.5em]\relax
+    A hanging paragraph inside a TikZ node; the node's text width
+    provides the measure and the node group scopes the state.%
+    \endhprose
+  };
+\end{tikzpicture}
+
+Without a \texttt{text width} on the node, the node body is in restricted horizontal mode; the environment degrades gracefully (vertical spacing is skipped) but a hanging indent needs line breaking to be visible, so supply either the node's \texttt{text width} or the environment's \opt{twidth}.
+
+\section{Justification (\env{hprose} only)}
+
+The \opt{justification} key accepts three values:
+
+\begin{itemize}
+  \item \opt{raggedright}: sets \cs{rightskip}, \cs{parfillskip}, \cs{spaceskip}, and \cs{xspaceskip} without disturbing the indented \cs{leftskip}.
+  \item \opt{raggedleft}: adds 2\,em of stretch to \cs{leftskip} and zeros \cs{rightskip} and \cs{parfillskip}.
+  \item \opt{centering}: adds 1\,fil of stretch on both sides.
+\end{itemize}
+
+The default is flush-both-sides. \env{hverse} and \env{hverse*} are always ragged-right; under \cs{obeylines}, justification would produce large inter-word gaps on almost every line.
+
+\section{Design notes and known limitations}
+
+\begin{itemize}
+  \item Inside the environments, \cs{linewidth} reflects the hanging block, by design; see Section~\ref{sec:lists}. Material sized to \cs{linewidth} aligns with the block rather than the full column.
+  \item \env{center}, \env{flushleft}, \env{flushright}, and \env{verbatim} ignore the hang on untagged engines; under \opt{tagging=on}, they behave correctly (Section~\ref{sec:lists}).
+  \item \cs{par} override in \env{hverse*} is required to detect stanza breaks. Constructs that call \cs{par} for non-stanza reasons (some display math configurations, custom float environments) can in principle miscount stanzas.
+  \item \env{hverse*} does not update \cs{cumulativehang}. Nested \pkg{hangtext} environments inside \env{hverse*} see the pre-\env{hverse*} cumulative hang, not the current stanza depth.
+  \item The environments overwrite \cs{everypar} for their duration and restore it on exit; packages that chain material through \cs{everypar} (such as \pkg{lineno}) lose that material inside the environments.
+  \item The three environments overlap substantially in their entry/exit bookkeeping. A refactor into a single state machine is planned.
+\end{itemize}
+
+
+\printbibliography
+
+\end{document}
